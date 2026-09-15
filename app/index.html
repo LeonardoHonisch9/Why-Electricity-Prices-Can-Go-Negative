@@ -51,7 +51,9 @@
   }
   @media (max-width: 820px){
     .layout{ grid-template-columns: 1fr; }
+    .right-col{ order: -1; }
   }
+  .left-col > .panel + .panel{ margin-top: 20px; }
   .panel{
     background: var(--panel);
     border: 1px solid var(--panel-border);
@@ -73,6 +75,8 @@
   .control label{
     display:flex;
     justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
     font-size: 0.85rem;
     color: var(--text-dim);
     margin-bottom: 6px;
@@ -80,6 +84,7 @@
   .control label span.val{
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
     color: var(--text);
+    white-space: nowrap;
   }
   input[type=range]{
     width: 100%;
@@ -161,7 +166,7 @@
     height: 8px;
     flex: 1;
     border-radius: 4px;
-    background: linear-gradient(90deg, #1a212b, #3fc1c9);
+    background: linear-gradient(90deg, #1b2140, #2c6e8e, #3fc1c9, #f2a93b);
   }
   footer{
     max-width: 1200px;
@@ -180,6 +185,8 @@
 </header>
 
 <div class="layout">
+
+  <div class="left-col">
 
   <div class="panel">
     <h2>Demand</h2>
@@ -265,6 +272,8 @@
     </div>
 
     <div class="insight" id="insight-text"></div>
+  </div>
+
   </div>
 
   <div class="right-col">
@@ -406,6 +415,26 @@
     return `rgb(${r},${g},${b})`;
   }
 
+  // Multi-stop colormap so "0 negative hours" is still a visible, distinct
+  // color (dark indigo) rather than blending into the panel background.
+  const HEAT_STOPS = [
+    {t: 0.00, c: '#1b2140'},
+    {t: 0.35, c: '#2c6e8e'},
+    {t: 0.70, c: '#3fc1c9'},
+    {t: 1.00, c: '#f2a93b'},
+  ];
+  function heatColor(t){
+    t = Math.max(0, Math.min(1, t));
+    for(let i=0; i<HEAT_STOPS.length-1; i++){
+      const a = HEAT_STOPS[i], b = HEAT_STOPS[i+1];
+      if(t >= a.t && t <= b.t){
+        const localT = (t - a.t) / (b.t - a.t || 1);
+        return lerpColor(a.c, b.c, localT);
+      }
+    }
+    return HEAT_STOPS[HEAT_STOPS.length-1].c;
+  }
+
   // ---------- Draw heatmap ----------
 
   function drawHeatmap(grid, resolution, marker){
@@ -421,7 +450,7 @@
       for(let i=0; i<resolution; i++){
         const val = grid[j][i]; // 0..24
         const t = val/24;
-        ctx.fillStyle = lerpColor(COLORS.panel, COLORS.neg, t);
+        ctx.fillStyle = heatColor(t);
         const x = padL + i*cellW;
         const y = padT + (resolution-1-j)*cellH; // solar increases upward
         ctx.fillRect(x, y, cellW+0.6, cellH+0.6);
@@ -454,10 +483,10 @@
     const mx = padL + (marker.wind/100)*plotW;
     const my = padT + (1 - marker.solar/100)*plotH;
     ctx.beginPath();
-    ctx.arc(mx, my, 6, 0, Math.PI*2);
-    ctx.fillStyle = COLORS.pos;
+    ctx.arc(mx, my, 7, 0, Math.PI*2);
+    ctx.fillStyle = '#ffffff';
     ctx.fill();
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.strokeStyle = '#10151c';
     ctx.stroke();
   }
